@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRUD de Productos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <style>
+    :root {
+      --primary: #4f8cff;
+      --secondary: #f5f7fa;
+      --accent: #ffb347;
+      --danger: #ff4f4f;
+      --success: #4fffa1;
+      --radius: 14px;
+      --shadow: 0 6px 32px rgba(0,0,0,0.10);
+      --nav-bg: #fff;
+      --nav-color: #222;
+      --toast-bg: #222;
+      --toast-color: #fff;
+      --fav: #ff4f81;
+      --gradient: linear-gradient(120deg, #4f8cff 0%, #ffb347 100%);
+      --gradient-dark: linear-gradient(120deg, #232b3a 0%, #4f8cff 100%);
+    }
+    [data-theme="dark"] {
+      --primary: #7ab8ff;
+      --secondary: #181f2a;
+      --accent: #ffd580;
+      --danger: #ff6b6b;
+      --success: #4fffa1;
+      --nav-bg: #232b3a;
+      --nav-color: #fff;
+      --toast-bg: #232b3a;
+      --toast-color: #fff;
+      --fav: #ff7fae;
+      --gradient: linear-gradient(120deg, #232b3a 0%, #7ab8ff 100%);
+      --gradient-dark: linear-gradient(120deg, #181f2a 0%, #7ab8ff 100%);
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: var(--secondary);
+      background-image: var(--gradient);
+      background-attachment: fixed;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      transition: background 0.3s;
+    }
+    .navbar {
+      width: 100%;
+      background: var(--nav-bg);
+      color: var(--nav-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      height: 70px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.10);
+      border-bottom-left-radius: var(--radius);
+      border-bottom-right-radius: var(--radius);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      transition: background 0.3s, color 0.3s;
+      backdrop-filter: blur(6px);
+    }
+    .navbar .brand {
+      font-weight: 700;
+      font-size: 1.5rem;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .navbar .brand i {
+      font-size: 1.7rem;
+      color: var(--accent);
+      filter: drop-shadow(0 2px 6px #ffb34788);
+    }
+    .navbar .nav-menu {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-right: 18px;
+    }
+    .navbar .nav-link {
+      background: none;
+      border: none;
+      color: var(--nav-color);
+      font-size: 1.08rem;
+      font-weight: 600;
+      padding: 8px 18px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, transform 0.1s;
+      letter-spacing: 0.5px;
+      position: relative;
+      outline: none;
+    }
+    .navbar .nav-link.active, .navbar .nav-link:hover {
+      background: var(--primary);
+      color: #fff;
+      transform: scale(1.08);
+      box-shadow: 0 2px 8px #4f8cff33;
+    }
+    .navbar .nav-link.active::after {
+      content: '';
+      display: block;
+      margin: 0 auto;
+      margin-top: 2px;
+      width: 60%;
+      height: 3px;
+      border-radius: 2px;
+      background: var(--accent);
+      animation: fadeIn 0.5s;
+    }
+    .navbar .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+    .navbar .user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1rem;
+    }
+    .navbar .avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--primary);
+      background: #fff;
+      box-shadow: 0 2px 8px #4f8cff33;
+    }
+    .navbar button, .navbar .theme-toggle {
+      background: none;
+      border: none;
+      color: var(--nav-color);
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: var(--radius);
+      transition: background 0.2s, color 0.2s, transform 0.1s;
+    }
+    .navbar button:hover, .navbar .theme-toggle:hover {
+      background: var(--primary);
+      color: #fff;
+      transform: scale(1.08);
+    }
+    .navbar .theme-toggle {
+      font-size: 1.3rem;
+      margin-left: 8px;
+    }
+    .container {
+      max-width: 950px;
+      margin: 40px auto;
+      background: rgba(255,255,255,0.97);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 32px 24px 24px 24px;
+      transition: background 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    [data-theme="dark"] .container {
+      background: rgba(35,43,58,0.97);
+    }
+    .decor-top {
+      position: absolute;
+      top: -60px; left: -60px;
+      width: 180px; height: 180px;
+      background: var(--gradient);
+      border-radius: 50%;
+      opacity: 0.13;
+      z-index: 0;
+      filter: blur(2px);
+      pointer-events: none;
+    }
+    .decor-bottom {
+      position: absolute;
+      bottom: -60px; right: -60px;
+      width: 180px; height: 180px;
+      background: var(--gradient);
+      border-radius: 50%;
+      opacity: 0.13;
+      z-index: 0;
+      filter: blur(2px);
+      pointer-events: none;
+    }
+    h1 {
+      text-align: center;
+      color: var(--primary);
+      margin-bottom: 24px;
+      font-size: 2.1rem;
+      letter-spacing: 1px;
+      position: relative;
+      z-index: 1;
+      text-shadow: 0 2px 8px #4f8cff22;
+    }
+    .welcome {
+      text-align: center;
+      font-size: 1.25rem;
+      color: var(--accent);
+      margin-bottom: 18px;
+      font-weight: 600;
+      animation: bounceIn 1s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .welcome .wave {
+      font-size: 2.1rem;
+      display: inline-block;
+      animation: wave 1.2s infinite linear;
+    }
+    @keyframes wave {
+      0% { transform: rotate(0deg); }
+      20% { transform: rotate(18deg); }
+      40% { transform: rotate(-10deg); }
+      60% { transform: rotate(18deg); }
+      80% { transform: rotate(-2deg); }
+      100% { transform: rotate(0deg); }
+    }
+    @keyframes bounceIn {
+      0% { opacity: 0; transform: scale(0.7); }
+      60% { opacity: 1; transform: scale(1.1); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .recommend {
+      background: var(--gradient);
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 12px 20px;
+      margin: 0 auto 18px auto;
+      max-width: 500px;
+      text-align: center;
+      font-size: 1.08rem;
+      box-shadow: 0 2px 12px #4f8cff22;
+      font-weight: 500;
+      animation: fadeIn 0.7s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+      z-index: 1;
+    }
+    .recommend i {
+      font-size: 1.3rem;
+      filter: drop-shadow(0 2px 6px #fff8);
+    }
+    .section-divider {
+      width: 100%;
+      height: 2.5px;
+      background: var(--gradient);
+      border-radius: 2px;
+      margin: 24px 0 18px 0;
+      opacity: 0.18;
+      box-shadow: 0 2px 8px #4f8cff22;
+    }
+    .stats-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      z-index: 1;
+      position: relative;
+    }
+    .counter {
+      color: var(--primary);
+      font-size: 1.05rem;
+      font-weight: 500;
+    }
+    .stats {
+      color: #666;
+      font-size: 0.98rem;
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+    [data-theme="dark"] .stats {
+      color: #bfc9e0;
+    }
+    .filters-bar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      z-index: 1;
+      position: relative;
+    }
+    .filters-bar select, .filters-bar button {
+      padding: 7px 14px;
+      border-radius: var(--radius);
+      border: 1.5px solid #dbeafe;
+      background: #fff;
+      color: #222;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+      box-shadow: 0 2px 8px #4f8cff11;
+    }
+    [data-theme="dark"] .filters-bar select, [data-theme="dark"] .filters-bar button {
+      background: #232b3a;
+      color: #fff;
+      border: 1.5px solid #3a4a6b;
+    }
+    .filters-bar button.active, .filters-bar button:active {
+      background: var(--primary);
+      color: #fff;
+      border: 1.5px solid var(--primary);
+      box-shadow: 0 2px 8px #4f8cff33;
+    }
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 32px;
+      align-items: flex-end;
+      background: var(--secondary);
+      padding: 16px;
+      border-radius: var(--radius);
+      box-shadow: 0 2px 8px rgba(79,140,255,0.07);
+      transition: background 0.3s;
+      z-index: 1;
+      position: relative;
+      animation: fadeIn 0.7s;
+    }
+    form input, form textarea {
+      flex: 1 1 180px;
+      padding: 10px;
+      border: 1.5px solid #dbeafe;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      transition: border 0.2s, box-shadow 0.2s;
+      background: #fff;
+      color: #222;
+      box-shadow: 0 2px 8px #4f8cff11;
+    }
+    [data-theme="dark"] form input, [data-theme="dark"] form textarea {
+      background: #232b3a;
+      color: #fff;
+      border: 1.5px solid #3a4a6b;
+    }
+    form input:focus, form textarea:focus {
+      border: 2px solid var(--primary);
+      outline: none;
+      box-shadow: 0 2px 8px #4f8cff33;
+    }
+    form button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 12px 24px;
+      border-radius: var(--radius);
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+      box-shadow: 0 2px 8px #4f8cff33;
+      font-size: 1.08rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    form button:hover {
+      background: var(--accent);
+      color: #222;
+      transform: translateY(-2px) scale(1.07);
+      box-shadow: 0 4px 16px #ffb34733;
+    }
+    .search-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      align-items: center;
+      z-index: 1;
+      position: relative;
+    }
+    .search-bar input {
+      flex: 1;
+      padding: 10px;
+      border-radius: var(--radius);
+      border: 1.5px solid #dbeafe;
+      font-size: 1rem;
+      background: #fff;
+      color: #222;
+      box-shadow: 0 2px 8px #4f8cff11;
+    }
+    [data-theme="dark"] .search-bar input {
+      background: #232b3a;
+      color: #fff;
+      border: 1.5px solid #3a4a6b;
+    }
+    .products-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 24px;
+      z-index: 1;
+      position: relative;
+    }
+    .product-card {
+      background: #f9fafb;
+      border-radius: var(--radius);
+      box-shadow: 0 4px 18px #4f8cff22;
+      padding: 18px 16px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      transition: box-shadow 0.2s, transform 0.2s, background 0.3s;
+      animation: fadeIn 0.5s;
+      border: 2.5px solid transparent;
+    }
+    [data-theme="dark"] .product-card {
+      background: #232b3a;
+      color: #fff;
+      box-shadow: 0 4px 18px #7ab8ff22;
+    }
+    .product-card:hover {
+      box-shadow: 0 8px 32px #4f8cff44;
+      border: 2.5px solid var(--primary);
+      transform: scale(1.03) rotate(-1deg);
+      z-index: 2;
+    }
+    .product-card img {
+      width: 100px;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 50%;
+      margin-bottom: 12px;
+      border: 2.5px solid var(--primary);
+      background: #fff;
+      cursor: pointer;
+      transition: box-shadow 0.2s, transform 0.2s;
+      box-shadow: 0 2px 8px #4f8cff33;
+    }
+    .product-card img:hover {
+      box-shadow: 0 0 0 6px var(--accent);
+      transform: scale(1.08) rotate(2deg);
+    }
+    .product-card h3 {
+      margin: 0 0 6px 0;
+      color: var(--primary);
+      font-size: 1.2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .product-card h3:hover {
+      color: var(--accent);
+      text-shadow: 0 2px 8px #ffb34733;
+    }
+    .product-card p {
+      margin: 0 0 8px 0;
+      color: #444;
+      font-size: 0.98rem;
+      text-align: center;
+    }
+    [data-theme="dark"] .product-card p {
+      color: #bfc9e0;
+    }
+    .product-card .price {
+      color: var(--accent);
+      font-weight: bold;
+      font-size: 1.1rem;
+      margin-bottom: 10px;
+      letter-spacing: 0.5px;
+    }
+    .product-card .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .product-card button {
+      border: none;
+      border-radius: var(--radius);
+      padding: 7px 14px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, transform 0.1s;
+      box-shadow: 0 2px 8px #4f8cff11;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .product-card .edit {
+      background: var(--primary);
+      color: #fff;
+    }
+    .product-card .edit:hover {
+      background: var(--success);
+      color: #222;
+      transform: scale(1.08);
+    }
+    .product-card .delete {
+      background: var(--danger);
+      color: #fff;
+    }
+    .product-card .delete:hover {
+      background: #fff;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      transform: scale(1.08);
+    }
+    .product-card .fav {
+      background: none;
+      color: var(--fav);
+      font-size: 1.3rem;
+      padding: 0 7px;
+      border: none;
+      cursor: pointer;
+      transition: color 0.2s, transform 0.1s;
+      margin-left: 2px;
+    }
+    .product-card .fav.active {
+      color: var(--fav);
+      text-shadow: 0 2px 8px rgba(255,79,129,0.13);
+      transform: scale(1.2);
+    }
+    .product-card .fav:hover {
+      color: #ffb3c6;
+      transform: scale(1.15);
+    }
+    @media (max-width: 600px) {
+      .container { padding: 10px; }
+      form { flex-direction: column; gap: 10px; }
+      .products-list { grid-template-columns: 1fr; }
+      .navbar { padding: 0 10px; }
+      .stats-bar { flex-direction: column; align-items: flex-start; gap: 6px; }
+      .navbar .nav-menu { gap: 2px; }
+    }
+    .empty-msg {
+      text-align: center;
+      color: #aaa;
+      font-size: 1.1rem;
+      margin-top: 32px;
+      z-index: 1;
+      position: relative;
+    }
+    .toast {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      background: var(--toast-bg);
+      color: var(--toast-color);
+      padding: 18px 32px;
+      border-radius: var(--radius);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.13);
+      font-size: 1.08rem;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-20px) scale(0.98);
+      transition: opacity 0.3s, transform 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+    }
+    .toast.show {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scale(1.04);
+      animation: bounceIn 0.5s;
+    }
+    .toast.success { background: #4fffa1; color: #222; }
+    .toast.error { background: #ff4f4f; color: #fff; }
+    .toast.info { background: #4f8cff; color: #fff; }
+    .toast .toast-icon { font-size: 1.3rem; }
+    /* Modal */
+    .modal-bg {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.25);
+      z-index: 1001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 0.3s;
+    }
+    .modal {
+      background: #fff;
+      border-radius: var(--radius);
+      padding: 32px 24px 24px 24px;
+      box-shadow: var(--shadow);
+      min-width: 320px;
+      max-width: 90vw;
+      color: #222;
+      position: relative;
+      max-width: 400px;
+      text-align: center;
+    }
+    [data-theme="dark"] .modal {
+      background: #232b3a;
+      color: #fff;
+    }
+    .modal h2 {
+      margin-top: 0;
+      color: var(--primary);
+      text-align: center;
+    }
+    .modal form {
+      background: none;
+      box-shadow: none;
+      padding: 0;
+      margin-bottom: 0;
+    }
+    .modal .close-modal {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      background: none;
+      border: none;
+      font-size: 1.3rem;
+      color: var(--danger);
+      cursor: pointer;
+    }
+    .modal .close-modal:hover {
+      color: var(--primary);
+    }
+    .modal .modal-actions {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .modal .modal-actions button {
+      min-width: 100px;
+    }
+    .modal .modal-img {
+      width: 160px;
+      height: 160px;
+      object-fit: cover;
+      border-radius: 50%;
+      border: 3px solid var(--primary);
+      margin-bottom: 16px;
+      background: #fff;
+    }
+    .modal .modal-price {
+      color: var(--accent);
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    .modal .modal-desc {
+      color: #444;
+      margin-bottom: 12px;
+    }
+    [data-theme="dark"] .modal .modal-desc {
+      color: #bfc9e0;
+    }
+    .modal .modal-fav {
+      background: none;
+      color: var(--fav);
+      font-size: 1.5rem;
+      border: none;
+      cursor: pointer;
+      margin-bottom: 8px;
+      transition: color 0.2s, transform 0.1s;
+    }
+    .modal .modal-fav.active {
+      color: var(--fav);
+      text-shadow: 0 2px 8px rgba(255,79,129,0.13);
+      transform: scale(1.2);
+    }
+    .modal .modal-fav:hover {
+      color: #ffb3c6;
+      transform: scale(1.15);
+    }
+    .comments-carousel-container {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      background: var(--gradient);
+      padding: 12px 0 0 0;
+    }
+    .comments-carousel {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: 0 2px 12px #4f8cff22;
+      padding: 10px 18px;
+      min-width: 320px;
+      max-width: 600px;
+      width: 100%;
+      position: relative;
+    }
+    [data-theme="dark"] .comments-carousel {
+      background: #232b3a;
+      color: #fff;
+    }
+    .carousel-arrow {
+      background: none;
+      border: none;
+      font-size: 1.3rem;
+      cursor: pointer;
+      color: var(--primary);
+      padding: 4px 10px;
+      border-radius: var(--radius);
+      transition: background 0.2s;
+    }
+    .carousel-arrow:hover {
+      background: var(--secondary);
+    }
+    .carousel-content {
+      flex: 1;
+      text-align: center;
+      font-size: 1.08rem;
+      color: #333;
+      min-height: 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    [data-theme="dark"] .carousel-content {
+      color: #fff;
+    }
+    .carousel-link {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 0.98rem;
+      cursor: pointer;
+      margin-left: 8px;
+      text-decoration: underline;
+      border-radius: var(--radius);
+      transition: color 0.2s;
+    }
+    .carousel-link:hover {
+      color: var(--primary);
+    }
+    #comments-section {
+      margin-bottom: 32px;
+    }
+    #comments-list {
+      margin-bottom: 12px;
+    }
+    .comment-item {
+      background: #f5f7fa;
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 8px #4f8cff11;
+      color: #222;
+      position: relative;
+    }
+    [data-theme="dark"] .comment-item {
+      background: #232b3a;
+      color: #fff;
+    }
+    .comment-author {
+      font-weight: bold;
+      color: var(--primary);
+      margin-bottom: 2px;
+    }
+    .comment-date {
+      font-size: 0.85rem;
+      color: #888;
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="brand"><i>🛒</i> Productos CRUD</div>
+    <div class="nav-menu" id="nav-menu">
+      <button class="nav-link active" id="nav-productos">Productos</button>
+      <button class="nav-link" id="nav-agregar">Agregar producto</button>
+    </div>
+    <div class="nav-actions" id="nav-actions"></div>
+  </nav>
+  <!-- Carrousel de comentarios -->
+  <div class="comments-carousel-container">
+    <div class="comments-carousel" id="comments-carousel">
+      <button id="carousel-prev" class="carousel-arrow">◀</button>
+      <div class="carousel-content" id="carousel-content"></div>
+      <button id="carousel-next" class="carousel-arrow">▶</button>
+      <button id="carousel-to-section" class="carousel-link">Ver todos</button>
+    </div>
+  </div>
+  <div class="container">
+    <div class="decor-top"></div>
+    <div class="decor-bottom"></div>
+    <h1>CRUD de Productos</h1>
+    <div id="welcome-msg" style="display:none;"></div>
+    <div class="section-divider"></div>
+    <div id="seccion-productos">
+      <div class="recommend" id="recommend-msg" style="display:none;"><i>💡</i> <span id="recommend-text"></span></div>
+      <div class="stats-bar">
+        <div class="counter" id="counter"></div>
+        <div class="stats" id="stats"></div>
+      </div>
+      <div class="filters-bar">
+        <button id="filter-all" class="active">Todos</button>
+        <button id="filter-fav">Favoritos <span id="fav-count"></span></button>
+        <select id="sort-select">
+          <option value="date-desc">Más recientes</option>
+          <option value="date-asc">Más antiguos</option>
+          <option value="name-asc">Nombre (A-Z)</option>
+          <option value="name-desc">Nombre (Z-A)</option>
+          <option value="price-asc">Precio (menor)</option>
+          <option value="price-desc">Precio (mayor)</option>
+        </select>
+      </div>
+      <div class="search-bar">
+        <input type="text" id="search" placeholder="Buscar productos...">
+        <button id="clear-search" style="display:none;">Limpiar</button>
+      </div>
+      <div class="products-list" id="products-list"></div>
+      <div class="empty-msg" id="empty-msg" style="display:none;">No hay productos para mostrar.</div>
+    </div>
+    <div id="seccion-agregar" style="display:none;">
+      <form id="product-form">
+        <input type="text" id="name" placeholder="Nombre del producto" required maxlength="32">
+        <input type="number" id="price" placeholder="Precio" required min="0" step="0.01">
+        <input type="text" id="image" placeholder="URL de imagen (opcional)">
+        <textarea id="desc" placeholder="Descripción" rows="1" maxlength="80"></textarea>
+        <button type="submit" id="submit-btn"><span>➕</span> Agregar</button>
+      </form>
+    </div>
+  </div>
+  <!-- Sección de comentarios -->
+  <div class="container" id="comments-section" style="margin-top: 24px;">
+    <h2>Comentarios</h2>
+    <div id="comments-list"></div>
+    <form id="comment-form" style="margin-top:16px;display:none;">
+      <textarea id="comment-text" placeholder="Escribe tu comentario..." rows="2" maxlength="120" required style="width:100%;border-radius:var(--radius);"></textarea>
+      <button type="submit" style="margin-top:8px;">Enviar comentario</button>
+    </form>
+  </div>
+  <div class="toast" id="toast"></div>
+  <div id="modal-root"></div>
+  <script>
+    // --- Firebase Config ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyCmiGN8ZssfV5O5uvNMCaKLOtZ2Uv5mOvw",
+      authDomain: "crud-system-4c3c0.firebaseapp.com",
+      projectId: "crud-system-4c3c0",
+      storageBucket: "crud-system-4c3c0.firebasestorage.app",
+      messagingSenderId: "117980720053",
+      appId: "1:117980720053:web:b4fc5c7c5588bb10d147fc",
+      measurementId: "G-5L2DKTB4FG"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // --- Estado ---
+    let editingId = null;
+    let products = [];
+    let user = JSON.parse(localStorage.getItem('crud_user') || 'null');
+    let theme = localStorage.getItem('crud_theme') || 'light';
+    let showFavs = false;
+    let sortBy = 'date-desc';
+    let searchQuery = '';
+    let seccionActiva = 'productos';
+
+    // --- Elementos ---
+    const navMenu = document.getElementById('nav-menu');
+    const navProductos = document.getElementById('nav-productos');
+    const navAgregar = document.getElementById('nav-agregar');
+    const seccionProductos = document.getElementById('seccion-productos');
+    const seccionAgregar = document.getElementById('seccion-agregar');
+    const form = document.getElementById('product-form');
+    const nameInput = document.getElementById('name');
+    const priceInput = document.getElementById('price');
+    const imageInput = document.getElementById('image');
+    const descInput = document.getElementById('desc');
+    const submitBtn = document.getElementById('submit-btn');
+    const productsList = document.getElementById('products-list');
+    const emptyMsg = document.getElementById('empty-msg');
+    const searchInput = document.getElementById('search');
+    const clearSearchBtn = document.getElementById('clear-search');
+    const counter = document.getElementById('counter');
+    const navActions = document.getElementById('nav-actions');
+    const toast = document.getElementById('toast');
+    const modalRoot = document.getElementById('modal-root');
+    const stats = document.getElementById('stats');
+    const filterAllBtn = document.getElementById('filter-all');
+    const filterFavBtn = document.getElementById('filter-fav');
+    const favCount = document.getElementById('fav-count');
+    const sortSelect = document.getElementById('sort-select');
+    const welcomeMsg = document.getElementById('welcome-msg');
+    const recommendMsg = document.getElementById('recommend-msg');
+    const recommendText = document.getElementById('recommend-text');
+
+    // --- Comentarios (Firestore) ---
+    let comments = [];
+    let carouselIndex = 0;
+    const commentsList = document.getElementById('comments-list');
+    const commentForm = document.getElementById('comment-form');
+    const commentText = document.getElementById('comment-text');
+    const carouselContent = document.getElementById('carousel-content');
+    const carouselPrev = document.getElementById('carousel-prev');
+    const carouselNext = document.getElementById('carousel-next');
+    const carouselToSection = document.getElementById('carousel-to-section');
+    const commentsSection = document.getElementById('comments-section');
+
+    // Tema (oscuro/claro) ---
+    function applyTheme() {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
+    function toggleTheme() {
+      theme = theme === 'light' ? 'dark' : 'light';
+      localStorage.setItem('crud_theme', theme);
+      applyTheme();
+      showToast('🌗', `Modo ${theme === 'dark' ? 'oscuro' : 'claro'} activado`, 'info');
+    }
+    applyTheme();
+
+    // --- Navegación de secciones ---
+    function mostrarSeccion(seccion) {
+      seccionActiva = seccion;
+      if (seccion === 'productos') {
+        seccionProductos.style.display = '';
+        seccionAgregar.style.display = 'none';
+        navProductos.classList.add('active');
+        navAgregar.classList.remove('active');
+      } else {
+        seccionProductos.style.display = 'none';
+        seccionAgregar.style.display = '';
+        navProductos.classList.remove('active');
+        navAgregar.classList.add('active');
+      }
+    }
+    navProductos.onclick = () => mostrarSeccion('productos');
+    navAgregar.onclick = () => mostrarSeccion('agregar');
+
+    // --- Mensaje de bienvenida ---
+    function renderWelcome() {
+      if (user) {
+        welcomeMsg.innerHTML = `<div class='welcome'><span class='wave'>👋</span> ¡Bienvenido, <b>${user.username}</b>!<br><span style='font-size:1.05rem;color:var(--primary);'>¡Disfruta gestionando tus productos!</span></div>`;
+        welcomeMsg.style.display = '';
+      } else {
+        welcomeMsg.innerHTML = `<div class='welcome'><span class='wave'>👋</span> ¡Bienvenido!<br><span style='font-size:1.05rem;color:var(--primary);'>Inicia sesión para agregar productos.</span></div>`;
+        welcomeMsg.style.display = '';
+      }
+    }
+
+    // --- Recomendaciones dinámicas ---
+    function renderRecommend(list) {
+      if (!user) {
+        recommendMsg.style.display = 'none';
+        return;
+      }
+      if (!list.length) {
+        recommendText.textContent = '¡Agrega tu primer producto usando el botón "Agregar producto"!';
+        recommendMsg.style.display = '';
+      } else if (list.length < 3) {
+        recommendText.textContent = '¿Sabías que puedes marcar productos como favoritos haciendo clic en el corazón?';
+        recommendMsg.style.display = '';
+      } else if (countFavs(list) === 0) {
+        recommendText.textContent = '¡Marca tus productos favoritos para encontrarlos más rápido!';
+        recommendMsg.style.display = '';
+      } else {
+        recommendMsg.style.display = 'none';
+      }
+    }
+
+    // --- Toasts mejorados ---
+    let toastTimeout = null;
+    function showToast(icon, msg, type = 'success', duration = 2200) {
+      toast.innerHTML = `<span class='toast-icon'>${icon}</span> <span>${msg}</span>`;
+      toast.className = `toast show ${type}`;
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.className = 'toast';
+      }, duration);
+    }
+
+    // --- Modal ---
+    function showModal(content) {
+      modalRoot.innerHTML = `<div class=\"modal-bg\"><div class=\"modal\">${content}</div></div>`;
+      const closeBtn = modalRoot.querySelector('.close-modal');
+      if (closeBtn) closeBtn.onclick = closeModal;
+      modalRoot.querySelector('.modal-bg').onclick = e => {
+        if (e.target === e.currentTarget) closeModal();
+      };
+    }
+    function closeModal() {
+      modalRoot.innerHTML = '';
+    }
+
+    // --- Sistema de cuentas (igual que antes) ---
+    function renderNav() {
+      navActions.innerHTML = '';
+      const themeBtn = document.createElement('button');
+      themeBtn.className = 'theme-toggle';
+      themeBtn.title = 'Cambiar tema';
+      themeBtn.innerHTML = theme === 'dark' ? '🌙' : '☀️';
+      themeBtn.onclick = toggleTheme;
+      if (user) {
+        // Usuario logueado
+        const userDiv = document.createElement('div');
+        userDiv.className = 'user';
+        userDiv.innerHTML = `
+          <img class="avatar" src="${user.avatar || 'https://i.pravatar.cc/150?u=' + encodeURIComponent(user.username)}" alt="avatar">
+          <span>${user.username}</span>
+        `;
+        navActions.appendChild(userDiv);
+        const logoutBtn = document.createElement('button');
+        logoutBtn.textContent = 'Cerrar sesión';
+        logoutBtn.onclick = () => {
+          localStorage.removeItem('crud_user');
+          user = null;
+          showToast('👋', 'Sesión cerrada', 'info');
+          renderNav();
+        };
+        navActions.appendChild(logoutBtn);
+        navActions.appendChild(themeBtn);
+      } else {
+        // No logueado
+        const loginBtn = document.createElement('button');
+        loginBtn.textContent = 'Iniciar sesión';
+        loginBtn.onclick = showLoginModal;
+        const registerBtn = document.createElement('button');
+        registerBtn.textContent = 'Crear cuenta';
+        registerBtn.onclick = showRegisterModal;
+        navActions.appendChild(loginBtn);
+        navActions.appendChild(registerBtn);
+        navActions.appendChild(themeBtn);
+      }
+    }
+    renderNav();
+
+    function showLoginModal() {
+      showModal(`
+        <button class="close-modal">×</button>
+        <h2>Iniciar sesión</h2>
+        <form id="login-form">
+          <input type="text" id="login-username" placeholder="Usuario" required maxlength="20" autocomplete="username">
+          <input type="password" id="login-password" placeholder="Contraseña" required maxlength="20" autocomplete="current-password">
+          <div class="modal-actions">
+            <button type="submit">Entrar</button>
+          </div>
+        </form>
+      `);
+      document.getElementById('login-form').onsubmit = function(e) {
+        e.preventDefault();
+        const username = document.getElementById('login-username').value.trim();
+        const password = document.getElementById('login-password').value;
+        const users = JSON.parse(localStorage.getItem('crud_users') || '[]');
+        const found = users.find(u => u.username === username && u.password === password);
+        if (found) {
+          localStorage.setItem('crud_user', JSON.stringify(found));
+          user = found;
+          showToast('🎉', '¡Bienvenido, ' + user.username + '!', 'success');
+          closeModal();
+          renderNav();
+        } else {
+          showToast('⚠️', 'Usuario o contraseña incorrectos', 'error');
+        }
+      };
+    }
+    function showRegisterModal() {
+      showModal(`
+        <button class="close-modal">×</button>
+        <h2>Crear cuenta</h2>
+        <form id="register-form">
+          <input type="text" id="reg-username" placeholder="Usuario" required maxlength="20" autocomplete="username">
+          <input type="password" id="reg-password" placeholder="Contraseña" required maxlength="20" autocomplete="new-password">
+          <input type="text" id="reg-avatar" placeholder="URL de avatar (opcional)">
+          <div class="modal-actions">
+            <button type="submit">Crear cuenta</button>
+          </div>
+        </form>
+      `);
+      document.getElementById('register-form').onsubmit = function(e) {
+        e.preventDefault();
+        const username = document.getElementById('reg-username').value.trim();
+        const password = document.getElementById('reg-password').value;
+        const avatar = document.getElementById('reg-avatar').value.trim();
+        if (!username || !password) return;
+        let users = JSON.parse(localStorage.getItem('crud_users') || '[]');
+        if (users.find(u => u.username === username)) {
+          showToast('⚠️', 'Ese usuario ya existe', 'error');
+          return;
+        }
+        const newUser = { username, password, avatar };
+        users.push(newUser);
+        localStorage.setItem('crud_users', JSON.stringify(users));
+        localStorage.setItem('crud_user', JSON.stringify(newUser));
+        user = newUser;
+        showToast('🎉', 'Cuenta creada y sesión iniciada', 'success');
+        closeModal();
+        renderNav();
+      };
+    }
+
+    // --- Favoritos (solo frontend, no se guarda en Firestore) ---
+    function toggleFav(id) {
+      products = products.map(p =>
+        p.firestoreId === id ? { ...p, fav: !p.fav } : p
+      );
+      renderProductsUI();
+      showToast(products.find(p=>p.firestoreId===id).fav ? '❤️' : '🤍', products.find(p=>p.firestoreId===id).fav ? '¡Añadido a favoritos!' : 'Eliminado de favoritos', 'info', 1600);
+    }
+    function countFavs(list = products) {
+      return list.filter(p => p.fav).length;
+    }
+
+    // --- Ordenar productos ---
+    function sortProducts(list) {
+      let arr = [...list];
+      switch (sortBy) {
+        case 'name-asc':
+          arr.sort((a, b) => a.name.localeCompare(b.name)); break;
+        case 'name-desc':
+          arr.sort((a, b) => b.name.localeCompare(a.name)); break;
+        case 'price-asc':
+          arr.sort((a, b) => parseFloat(a.price) - parseFloat(b.price)); break;
+        case 'price-desc':
+          arr.sort((a, b) => parseFloat(b.price) - parseFloat(a.price)); break;
+        case 'date-asc':
+          arr.sort((a, b) => a.firestoreId.localeCompare(b.firestoreId)); break;
+        case 'date-desc':
+        default:
+          arr.sort((a, b) => b.firestoreId.localeCompare(a.firestoreId)); break;
+      }
+      return arr;
+    }
+
+    // --- Estadísticas rápidas ---
+    function renderStats(list) {
+      if (!list.length) {
+        stats.textContent = '';
+        return;
+      }
+      const total = list.length;
+      const favs = countFavs(list);
+      const prices = list.map(p => parseFloat(p.price));
+      const avg = prices.reduce((a, b) => a + b, 0) / total;
+      const min = Math.min(...prices);
+      const max = Math.max(...prices);
+      stats.innerHTML = `
+        <span>Favoritos: <b>${favs}</b></span>
+        <span>Promedio: <b>$${avg.toFixed(2)}</b></span>
+        <span>Menor: <b>$${min.toFixed(2)}</b></span>
+        <span>Mayor: <b>$${max.toFixed(2)}</b></span>
+      `;
+    }
+
+    // --- Renderizar productos (con filtros, orden, búsqueda, favoritos) ---
+    function renderProductsUI() {
+      let list = [...products];
+      // Filtro favoritos
+      if (showFavs) list = list.filter(p => p.fav);
+      // Búsqueda
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        list = list.filter(p =>
+          p.name.toLowerCase().includes(q) ||
+          (p.desc && p.desc.toLowerCase().includes(q))
+        );
+      }
+      // Orden
+      list = sortProducts(list);
+      // Render
+      renderStats(list);
+      counter.textContent = `Productos: ${list.length}`;
+      favCount.textContent = `(${countFavs(products)})`;
+      productsList.innerHTML = '';
+      renderRecommend(list);
+      if (!list.length) {
+        emptyMsg.style.display = 'block';
+        return;
+      }
+      emptyMsg.style.display = 'none';
+      list.forEach(product => {
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        let actionsHTML = '';
+        if (user && product.createdBy === user.username) {
+          actionsHTML = `
+            <button class="edit"><span>✏️</span> Editar</button>
+            <button class="delete"><span>🗑️</span> Eliminar</button>
+          `;
+        }
+        actionsHTML += `<button class="fav${product.fav ? ' active' : ''}" title="Favorito">${product.fav ? '♥' : '♡'}</button>`;
+        card.innerHTML = `
+          <img src="${product.image || 'https://i.imgur.com/6RLwA0y.png'}" alt="Imagen">
+          <h3>${product.name}</h3>
+          <div class="price">$${parseFloat(product.price).toFixed(2)}</div>
+          <p>${product.desc || ''}</p>
+          <div class="actions">
+            ${actionsHTML}
+          </div>
+        `;
+        // Detalles en modal
+        card.querySelector('img').onclick = () => showProductModal(product.firestoreId);
+        card.querySelector('h3').onclick = () => showProductModal(product.firestoreId);
+        // Editar
+        const editBtn = card.querySelector('.edit');
+        if (editBtn) editBtn.onclick = () => startEdit(product.firestoreId);
+        // Eliminar
+        const deleteBtn = card.querySelector('.delete');
+        if (deleteBtn) deleteBtn.onclick = () => deleteProduct(product.firestoreId);
+        // Favorito
+        card.querySelector('.fav').onclick = () => toggleFav(product.firestoreId);
+        productsList.appendChild(card);
+      });
+    }
+
+    // --- Modal de detalles ---
+    function showProductModal(id) {
+      const p = products.find(p => p.firestoreId === id);
+      if (!p) return;
+      showModal(`
+        <button class="close-modal">×</button>
+        <img class="modal-img" src="${p.image || 'https://i.imgur.com/6RLwA0y.png'}" alt="Imagen">
+        <h2>${p.name}</h2>
+        <div class="modal-price">$${parseFloat(p.price).toFixed(2)}</div>
+        <div class="modal-desc">${p.desc || ''}</div>
+        <button class="modal-fav${p.fav ? ' active' : ''}" title="Favorito">${p.fav ? '♥' : '♡'}</button>
+        <div class="modal-actions">
+          <button onclick="closeModal()">Cerrar</button>
+        </div>
+      `);
+      modalRoot.querySelector('.modal-fav').onclick = () => {
+        toggleFav(id);
+        closeModal();
+      };
+    }
+
+    // --- Agregar o editar producto (Firestore) ---
+    form.onsubmit = async e => {
+      e.preventDefault();
+      if (!user) {
+        showToast('🔒', 'Debes iniciar sesión para agregar productos', 'error', 2200);
+        return;
+      }
+      const name = nameInput.value.trim();
+      const price = priceInput.value.trim();
+      const image = imageInput.value.trim();
+      const desc = descInput.value.trim();
+      if (!name || !price) return;
+      if (editingId) {
+        // Editar
+        await db.collection('products').doc(editingId).update({ name, price, image, desc });
+        editingId = null;
+        submitBtn.textContent = 'Agregar';
+        showToast('✅', 'Producto editado correctamente', 'success');
+      } else {
+        // Agregar
+        await db.collection('products').add({ name, price, image, desc, createdBy: user.username });
+        showToast('🎉', '¡Producto agregado exitosamente!', 'success');
+      }
+      form.reset();
+      mostrarSeccion('productos');
+    };
+
+    // --- Editar producto (Firestore) ---
+    function startEdit(id) {
+      if (!user) {
+        showToast('🔒', 'Debes iniciar sesión para editar productos', 'error', 2200);
+        return;
+      }
+      const product = products.find(p => p.firestoreId === id);
+      if (!product) return;
+      if (product.createdBy !== user.username) {
+        showToast('⛔', 'Solo puedes editar tus propios productos', 'error', 2200);
+        return;
+      }
+      nameInput.value = product.name;
+      priceInput.value = product.price;
+      imageInput.value = product.image;
+      descInput.value = product.desc;
+      editingId = id;
+      submitBtn.textContent = 'Guardar';
+      mostrarSeccion('agregar');
+      nameInput.focus();
+    }
+
+    // --- Eliminar producto (Firestore) ---
+    async function deleteProduct(id) {
+      if (!user) {
+        showToast('🔒', 'Debes iniciar sesión para eliminar productos', 'error', 2200);
+        return;
+      }
+      const product = products.find(p => p.firestoreId === id);
+      if (!product) return;
+      if (product.createdBy !== user.username) {
+        showToast('⛔', 'Solo puedes eliminar tus propios productos', 'error', 2200);
+        return;
+      }
+      if (!confirm('¿Seguro que deseas eliminar este producto?')) return;
+      await db.collection('products').doc(id).delete();
+      showToast('🗑️', 'Producto eliminado', 'success');
+    }
+
+    // --- Buscar productos ---
+    searchInput.oninput = function() {
+      searchQuery = this.value.trim();
+      clearSearchBtn.style.display = searchQuery ? 'inline-block' : 'none';
+      renderProductsUI();
+    };
+    clearSearchBtn.onclick = function() {
+      searchInput.value = '';
+      searchQuery = '';
+      clearSearchBtn.style.display = 'none';
+      renderProductsUI();
+      searchInput.focus();
+    };
+
+    // --- Filtros y orden ---
+    filterAllBtn.onclick = function() {
+      showFavs = false;
+      filterAllBtn.classList.add('active');
+      filterFavBtn.classList.remove('active');
+      renderProductsUI();
+    };
+    filterFavBtn.onclick = function() {
+      showFavs = true;
+      filterAllBtn.classList.remove('active');
+      filterFavBtn.classList.add('active');
+      renderProductsUI();
+    };
+    sortSelect.onchange = function() {
+      sortBy = this.value;
+      renderProductsUI();
+    };
+
+    // --- Escuchar productos en tiempo real (Firestore) ---
+    db.collection('products').onSnapshot(snapshot => {
+      products = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id, fav: false }));
+      renderProductsUI();
+    });
+
+    // --- Comentarios (Firestore) ---
+    function renderCommentsList() {
+      commentsList.innerHTML = '';
+      if (!comments.length) {
+        commentsList.innerHTML = '<div style="color:#888;text-align:center;">No hay comentarios aún.</div>';
+        return;
+      }
+      comments.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'comment-item';
+        div.innerHTML = `<div class='comment-author'>${c.author}</div><div>${c.text}</div><div class='comment-date'>${new Date(c.date).toLocaleString()}</div>`;
+        commentsList.appendChild(div);
+      });
+    }
+
+    function renderCarousel() {
+      if (!comments.length) {
+        carouselContent.innerHTML = '<span style="color:#888;">Sin comentarios aún</span>';
+        return;
+      }
+      const c = comments[carouselIndex];
+      carouselContent.innerHTML = `<span>"${c.text}"</span><div style='font-size:0.95rem;color:var(--primary);margin-top:2px;'>- ${c.author}</div>`;
+    }
+
+    carouselPrev.onclick = function() {
+      if (!comments.length) return;
+      carouselIndex = (carouselIndex - 1 + comments.length) % comments.length;
+      renderCarousel();
+    };
+    carouselNext.onclick = function() {
+      if (!comments.length) return;
+      carouselIndex = (carouselIndex + 1) % comments.length;
+      renderCarousel();
+    };
+    carouselToSection.onclick = function() {
+      commentsSection.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    commentForm.onsubmit = async function(e) {
+      e.preventDefault();
+      const text = commentText.value.trim();
+      if (!text) return;
+      await db.collection('comments').add({
+        text,
+        author: user.username,
+        date: Date.now()
+      });
+      commentText.value = '';
+      showToast('💬', 'Comentario enviado', 'success');
+    };
+
+    db.collection('comments').orderBy('date', 'desc').onSnapshot(snapshot => {
+      comments = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
+      if (carouselIndex >= comments.length) carouselIndex = 0;
+      renderCommentsList();
+      renderCarousel();
+    });
+
+    // --- Inicializar ---
+    renderWelcome();
+    mostrarSeccion('productos');
+    renderProductsUI();
+    updateCommentFormVisibility(); // Actualizar visibilidad del formulario de comentarios
+  </script>
+</body>
+</html>
